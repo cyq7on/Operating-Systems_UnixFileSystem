@@ -313,12 +313,27 @@ int file_cat(char *name)
 		fileData = '\0';
 		free(fileData);
 		return 0;
-}//cat 
+}//cat
+
+int file_open(char *name) {
+	int inodeNum = search_cur_dir(name);
+	if(inodeNum >= 0) {
+		gettimeofday(&(inode[inodeNum].lastAccess), NULL); //update last access time
+		printf("%s's inode is %d\n" , name , inodeNum);
+	} else {
+        printf("%s :file not found.\n",name);
+	}
+}
 
 int file_read(char *name, int offset, int size)
 {		 
 		int inodeNum = search_cur_dir(name);
-		gettimeofday(&(inode[inodeNum].lastAccess), NULL); //update last access time
+        if(inodeNum >= 0) {
+            gettimeofday(&(inode[inodeNum].lastAccess), NULL); //update last access time
+        } else {
+            printf("%s :file not found.\n",name);
+            return -1;
+        }
 	
 		char * buf = (char*) malloc(512);	
 		int block_begin = offset / 512; 
@@ -617,12 +632,12 @@ int dir_remove(char *name)
 		disk_read(curDirBlock, (char*)&curDir);
 		return -1;
 	}
-	int numEntries = curDir.numEntry;
-	if(numEntries > 2){
-		printf ("Error: directory %s is not empty.\n",name);
-		disk_read(curDirBlock, (char*)&curDir);
-		return -1;
-	}
+//	int numEntries = curDir.numEntry;
+//	if(numEntries > 2){
+//		printf ("Error: directory %s is not empty.\n",name);
+//		disk_read(curDirBlock, (char*)&curDir);
+//		return -1;
+//	}
 	disk_read(curDirBlock, (char*)&curDir);
 	
 	//update Dentry and DirectoryEntry of curDir 
@@ -709,6 +724,12 @@ int execute_command(char *comm, char *arg1, char *arg2, char *arg3, char *arg4, 
 						return -1;
 				}
 				return file_cat(arg1); // file_cat(filename)
+		} else if(command(comm, "open")) {
+			if(numArg < 1) {
+				printf("error: open <filename>\n");
+				return -1;
+			}
+			return file_open(arg1); // file_open(filename)
 		} else if(command(comm, "write")) {
 				if(numArg < 4) {
 						printf("error: write <filename> <offset> <size> <buf>\n");
@@ -727,6 +748,12 @@ int execute_command(char *comm, char *arg1, char *arg2, char *arg3, char *arg4, 
 						return -1;
 				}
 				return file_remove(arg1); //(filename)
+		}else if(command(comm, "unlink")) {
+			if(numArg < 1) {
+				printf("error: unlink <filename>\n");
+				return -1;
+			}
+			return file_remove(arg1); //(filename)
 		} else if(command(comm, "mkdir")) {
 				if(numArg < 1) {
 						printf("error: mkdir <dirname>\n");
@@ -745,7 +772,7 @@ int execute_command(char *comm, char *arg1, char *arg2, char *arg3, char *arg4, 
 						return -1;
 				}
 				return dir_change(arg1); // (dirname)
-		} else if(command(comm, "ls"))  {
+		} else if(command(comm, "ls") || command(comm, "dirread"))  {
 				return ls();
 		} else if(command(comm, "stat")) {
 				if(numArg < 1) {
